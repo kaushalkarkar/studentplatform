@@ -1,0 +1,24 @@
+{
+  "name": "ican-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "seed": "cd backend && ts-node prisma/seed.ts",
+    "build": "cd backend && npm install && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajayramon/ican-platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ajayramon/ican-platform/issues"
+  },
+  "homepage": "https://github.com/ajayramon/ican-platform#readme"
+}
+ 

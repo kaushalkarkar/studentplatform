@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SELF-HOSTED POSTGRESQL 16 DATABASE ($0 PERPETUAL / NO CLOUD SUBSCRIPTION)
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ican_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ican_user
+      POSTGRES_PASSWORD: ican_password_2026
+      POSTGRES_DB: ican_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ican_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ican_user -d ican_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ican_network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # REDIS CACHE & TIMERS ($0 / LOCAL DOCKER)
+  # ─────────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: ican_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ican_redisdata:/data
+    networks:
+      - ican_network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # ICAN BACKEND API SERVER (EXPRESS + PRISMA + CHRONO-TIMERS)
+  # ─────────────────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ican_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: "${DATABASE_URL:-postgresql://ican_user:ican_password_2026@postgres:5432/ican_db?schema=public}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
+      JWT_SECRET: "${JWT_SECRET:-ican_deep_space_secret_2026_qec53_self_hosted}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_REGION: "${AWS_REGION:-us-east-1}"
+    ports:
+      - "5000:5000"
+    networks:
+      - ican_network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # ICAN FRONTEND PORTAL (NEXT.JS DEEP SPACE UI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:5000}"
+    container_name: ican_frontend
+    restart: always
+    depends_on:
+      - backend
+    env_file:
+      - ./frontend/.env
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:5000}"
+    ports:
+      - "3000:3000"
+    networks:
+      - ican_network
+
+volumes:
+  ican_pgdata:
+    name: ican_postgres_volume
+  ican_redisdata:
+    name: ican_redis_volume
+
+networks:
+  ican_network:
+    name: ican_network
+    driver: bridge
